@@ -9,10 +9,10 @@ pub trait VGraph {
     fn out_edges(node: Self::Node) -> Vec<Self::Node>;
 }
 
-pub fn breadth_first_search<N, G>(start: G::Node, end: G::Node) -> Option<Vec<G::Node>>
+pub fn breadth_first_search<G>(start: G::Node, end: G::Node) -> Option<Vec<G::Node>>
 where
-    N: Eq + Hash + Copy,
-    G: VGraph<Node = N>,
+    G: VGraph,
+    G::Node: Eq + Hash + Copy,
 {
     let mut to_explore = VecDeque::new();
     to_explore.push_back(start);
@@ -76,6 +76,6 @@ mod tests {
 
     #[test]
     fn breadth_first_search_works() {
-        assert_eq!(Some(vec![1,2,3]), breadth_first_search::<usize,Ex>(1,3));
+        assert_eq!(Some(vec![1,2,3]), breadth_first_search::<Ex>(1,3));
     }
 }
