@@ -11,13 +11,13 @@ pub trait VGraph {
     // Measure of the distance between nodes
     type Dist;
 
-    fn all_nodes() -> Vec<Self::Node>;
-    fn out_edges(node: Self::Node) -> Vec<Self::Node>;
+    fn all_nodes(&self) -> Vec<Self::Node>;
+    fn out_edges(&self, node: Self::Node) -> Vec<Self::Node>;
 
-    fn dist(from: Self::Node, to: Self::Node) -> Self::Dist;
+    fn dist(&self, from: Self::Node, to: Self::Node) -> Self::Dist;
 }
 
-pub fn breadth_first_search<G>(start: G::Node, end: G::Node) -> Option<Vec<G::Node>>
+pub fn breadth_first_search<G>(g: G, start: G::Node, end: G::Node) -> Option<Vec<G::Node>>
 where
     G: VGraph,
     G::Node: Eq + Hash + Copy,
@@ -31,7 +31,7 @@ where
             return Some(back_track(&prev, end));
         }
 
-        for next in G::out_edges(cur) {
+        for next in g.out_edges(cur) {
             // Only insert nodes we have not explored yet
             if !prev.contains_key(&next) {
                 prev.insert(next, cur);
@@ -43,7 +43,7 @@ where
     None
 }
 
-pub fn a_star_search<G, H>(start: G::Node, end: G::Node, heuristic: H) -> Option<Vec<G::Node>>
+pub fn a_star_search<G, H>(g:G, start: G::Node, end: G::Node, heuristic: H) -> Option<Vec<G::Node>>
 where
     G: VGraph,
     G::Node: Hash + Eq + Ord + Copy,
@@ -61,11 +61,11 @@ where
             return Some(back_track(&prev, end));
         }
 
-        for next in G::out_edges(cur) {
+        for next in g.out_edges(cur) {
             let cur_distance = dist_from_start
                 .get(&cur)
                 .expect("Every node in the explore set should already have a previous distance.");
-            let start_to_next: G::Dist = *cur_distance + G::dist(cur, next);
+            let start_to_next: G::Dist = *cur_distance + g.dist(cur, next);
             let h_dist = start_to_next + heuristic(next);
             to_explore.push_decrease(next, h_dist);
 
@@ -84,7 +84,7 @@ where
     None
 }
 
-pub fn path_length<G>(path: Vec<G::Node>) -> G::Dist
+pub fn path_length<G>(g: G, path: Vec<G::Node>) -> G::Dist
 where
     G: VGraph,
     G::Node: Copy,
@@ -93,7 +93,7 @@ where
     let mut distance = G::Dist::zero();
     for window in path.windows(2) {
         if let &[from, to] = window {
-            distance += G::dist(from, to);
+            distance += g.dist(from, to);
         } else {
             panic!("Windows were not full.");
         }
@@ -122,15 +122,20 @@ mod tests {
     use super::*;
 
     struct Ex {}
+    impl Ex {
+        fn new() -> Self {
+            Ex {}
+        }
+    }
 
     impl VGraph for Ex {
         type Node = usize;
 
-        fn all_nodes() -> Vec<Self::Node> {
+        fn all_nodes(&self) -> Vec<Self::Node> {
             vec![1, 2, 3]
         }
 
-        fn out_edges(node: Self::Node) -> Vec<Self::Node> {
+        fn out_edges(&self, node: Self::Node) -> Vec<Self::Node> {
             match node {
                 1 => vec![2],
                 2 => vec![3],
@@ -142,19 +147,19 @@ mod tests {
         type Dist = i32;
 
         // If a node is in the graph, then the distance is 1
-        fn dist(_: Self::Node, _: Self::Node) -> Self::Dist {
+        fn dist(&self, _: Self::Node, _: Self::Node) -> Self::Dist {
             1
         }
     }
 
     #[test]
     fn breadth_first_search_works() {
-        assert_eq!(Some(vec![1, 2, 3]), breadth_first_search::<Ex>(1, 3));
+        assert_eq!(Some(vec![1, 2, 3]), breadth_first_search(Ex::new(), 1, 3));
     }
 
     #[test]
     fn path_length_works() {
-        assert_eq!(2, path_length::<Ex>(vec![1, 2, 3]))
+        assert_eq!(2, path_length::<Ex>(Ex::new(), vec![1, 2, 3]))
     }
 
     #[test]
@@ -163,6 +168,6 @@ mod tests {
         fn h(_node: usize) -> i32 {
             return 0;
         }
-        assert_eq!(Some(vec![1, 2, 3]), a_star_search::<Ex, _>(1, 3, h));
+        assert_eq!(Some(vec![1, 2, 3]), a_star_search::<Ex, _>(Ex::new(), 1, 3, h));
     }
 }
