@@ -1,4 +1,5 @@
 use num::traits::Zero;
+use priority_queue::PriorityQueue;
 use std::collections::{HashMap, VecDeque};
 use std::hash::Hash;
 use std::ops::AddAssign;
@@ -39,6 +40,47 @@ where
         }
     }
 
+    None
+}
+
+pub fn a_star_search<G, H>(start: G::Node, end: G::Node, heuristic: H) -> Option<Vec<G::Node>>
+where
+    G: VGraph,
+    G::Node: Hash + Eq + Ord + Copy,
+    G::Dist: Zero + Ord + Copy,
+    H: Fn(G::Node) -> G::Dist,
+{
+    let mut to_explore = PriorityQueue::new();
+    to_explore.push_decrease(start, heuristic(start));
+    // Stores the node that this came from on the path, and the best found true distance from the start.
+    let mut prev: HashMap<G::Node, G::Node> = HashMap::new();
+    let mut dist_from_start: HashMap<G::Node, G::Dist> = HashMap::new();
+    dist_from_start.insert(start, G::Dist::zero());
+    while let Some((cur, _priority)) = to_explore.pop() {
+        if cur == end {
+            return Some(back_track(&prev, end));
+        }
+
+        for next in G::out_edges(cur) {
+            let cur_distance = dist_from_start
+                .get(&cur)
+                .expect("Every node in the explore set should already have a previous distance.");
+            let start_to_next: G::Dist = *cur_distance + G::dist(cur, next);
+            let h_dist = start_to_next + heuristic(next);
+            to_explore.push_decrease(next, h_dist);
+
+            if dist_from_start
+                .get(&next)
+                .map(|current_best_start_to_next| start_to_next < *current_best_start_to_next)
+                .unwrap_or(true)
+            {
+                prev.insert(next, cur);
+                dist_from_start.insert(next, start_to_next);
+            }
+        }
+    }
+
+    // Ran out of places to explore, end not found.
     None
 }
 
@@ -113,5 +155,14 @@ mod tests {
     #[test]
     fn path_length_works() {
         assert_eq!(2, path_length::<Ex>(vec![1, 2, 3]))
+    }
+
+    #[test]
+    fn a_star_search_works() {
+        // This ignores the heuristic and makes this equivalent to djikstra's
+        fn h(_node: usize) -> i32 {
+            return 0;
+        }
+        assert_eq!(Some(vec![1, 2, 3]), a_star_search::<Ex, _>(1, 3, h));
     }
 }
