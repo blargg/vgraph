@@ -1,5 +1,6 @@
 use num::traits::Zero;
 use priority_queue::PriorityQueue;
+use std::cmp::Reverse;
 use std::collections::{HashMap, VecDeque};
 use std::hash::Hash;
 use std::ops::AddAssign;
@@ -51,7 +52,7 @@ where
     H: Fn(G::Node) -> G::Dist,
 {
     let mut to_explore = PriorityQueue::new();
-    to_explore.push_decrease(start, heuristic(start));
+    to_explore.push_increase(start, Reverse(heuristic(start)));
     // Stores the node that this came from on the path, and the best found true distance from the start.
     let mut prev: HashMap<G::Node, G::Node> = HashMap::new();
     let mut dist_from_start: HashMap<G::Node, G::Dist> = HashMap::new();
@@ -67,7 +68,12 @@ where
                 .expect("Every node in the explore set should already have a previous distance.");
             let start_to_next: G::Dist = *cur_distance + g.dist(cur, next);
             let h_dist = start_to_next + heuristic(next);
-            to_explore.push_decrease(next, h_dist);
+
+            if let Some(best_start_to_next) = dist_from_start.get(&next) {
+                // we already have a path to next that is better than this one, skip this path.
+                if start_to_next >= *best_start_to_next { continue; }
+            }
+            to_explore.push_increase(next, Reverse(h_dist));
 
             if dist_from_start
                 .get(&next)
@@ -152,9 +158,49 @@ mod tests {
         }
     }
 
+    struct Cycles {}
+
+    impl VGraph for Cycles {
+        type Node = usize;
+
+        type Dist = usize;
+
+        fn all_nodes(&self) -> Vec<Self::Node> {
+            (1..=10).collect::<Vec<_>>()
+        }
+
+        fn out_edges(&self, node: Self::Node) -> Vec<Self::Node> {
+            match node {
+                1 => vec![2,3],
+                2 => vec![3,6],
+                3 => vec![4, 5],
+                4 => vec![10, 5],
+                5 => vec![1],
+                6 => vec![2],
+                7 => vec![8],
+                8 => vec![9],
+                9 => vec![10],
+                10 => vec![1],
+                _ => vec![],
+            }
+        }
+
+        fn dist(&self, from: Self::Node, _to: Self::Node) -> Self::Dist {
+            match from {
+                3 => 3,
+                _ => 1,
+            }
+        }
+    }
+
     #[test]
     fn breadth_first_search_works() {
         assert_eq!(Some(vec![1, 2, 3]), breadth_first_search(Ex::new(), 1, 3));
+    }
+
+    #[test]
+    fn breadth_first_search_for_non_path_terminates() {
+        assert_eq!(None, breadth_first_search(Cycles {}, 1, 33));
     }
 
     #[test]
@@ -169,5 +215,10 @@ mod tests {
             return 0;
         }
         assert_eq!(Some(vec![1, 2, 3]), a_star_search::<Ex, _>(Ex::new(), 1, 3, h));
+    }
+
+    #[test]
+    fn a_star_search_for_non_path_terminates() {
+        assert_eq!(None, a_star_search(Cycles {}, 1, 33, |_| 0));
     }
 }
