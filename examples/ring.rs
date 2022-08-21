@@ -7,7 +7,7 @@ struct RingPuzzle {
     spaces: Vec<i32>,
 }
 
-#[derive(Hash, PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]
+#[derive(Debug, Hash, PartialEq, Eq, PartialOrd, Ord, Copy, Clone)]
 struct State {
     position: usize,
     sum: i32,
@@ -31,6 +31,11 @@ impl VGraph for RingPuzzle {
     }
 
     fn out_edges(&self, node: Self::Node) -> Vec<Self::Node> {
+        // Negative sums end the game. No outgoing states.
+        if node.sum < 0 {
+            return vec![]
+        }
+
         let left = {
             let pos = if node.position == 0 {
                 self.spaces.len() - 1
@@ -57,6 +62,6 @@ impl VGraph for RingPuzzle {
 fn main() {
     let puzzle = RingPuzzle::new(vec![-3, 7, -9, 4, -8, 1]);
     let start = State { position: 0, sum: 10 };
-    // let solution = a_star_search(puzzle, start, end, |_| 0);
-
+    let solution = a_star_search(puzzle, start, |s| s.sum == 0, |_| 0);
+    println!("Solution found: {solution:?}");
 }

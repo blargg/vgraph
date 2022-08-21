@@ -44,11 +44,12 @@ where
     None
 }
 
-pub fn a_star_search<G, H>(g:G, start: G::Node, end: G::Node, heuristic: H) -> Option<Vec<G::Node>>
+pub fn a_star_search<G, F, H>(g:G, start: G::Node, is_end: F, heuristic: H) -> Option<Vec<G::Node>>
 where
     G: VGraph,
     G::Node: Hash + Eq + Ord + Copy,
     G::Dist: Zero + Ord + Copy,
+    F: Fn(G::Node) -> bool,
     H: Fn(G::Node) -> G::Dist,
 {
     let mut to_explore = PriorityQueue::new();
@@ -58,8 +59,8 @@ where
     let mut dist_from_start: HashMap<G::Node, G::Dist> = HashMap::new();
     dist_from_start.insert(start, G::Dist::zero());
     while let Some((cur, _priority)) = to_explore.pop() {
-        if cur == end {
-            return Some(back_track(&prev, end));
+        if is_end(cur) {
+            return Some(back_track(&prev, cur));
         }
 
         for next in g.out_edges(cur) {
@@ -214,11 +215,11 @@ mod tests {
         fn h(_node: usize) -> i32 {
             return 0;
         }
-        assert_eq!(Some(vec![1, 2, 3]), a_star_search::<Ex, _>(Ex::new(), 1, 3, h));
+        assert_eq!(Some(vec![1, 2, 3]), a_star_search(Ex::new(), 1, |n| n == 3, h));
     }
 
     #[test]
     fn a_star_search_for_non_path_terminates() {
-        assert_eq!(None, a_star_search(Cycles {}, 1, 33, |_| 0));
+        assert_eq!(None, a_star_search(Cycles {}, 1, |n| n == 33, |_| 0));
     }
 }
