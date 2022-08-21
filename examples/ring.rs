@@ -54,6 +54,7 @@ impl VGraph for RingPuzzle {
     }
 
     fn dist(&self, _from: Self::Node, _to: Self::Node) -> Self::Dist {
+        // Each move costs 1 (each turn taken).
         1
     }
 }
@@ -63,5 +64,10 @@ fn main() {
     let puzzle = RingPuzzle::new(vec![-3, 7, -9, 4, -8, 1]);
     let start = State { position: 0, sum: 10 };
     let solution = a_star_search(puzzle, start, |s| s.sum == 0, |_| 0);
-    println!("Solution found: {solution:?}");
+    println!("Ring 1 solution: {solution:?}");
+
+    let ring3 = RingPuzzle::new(vec![-33, 25, 15, -45, 55, 10]);
+    let start3 = State { position: 0, sum: 10 };
+    let solution = a_star_search(ring3, start3, |s| s.sum == 0, |_| 0);
+    println!("Ring 3 solution: {solution:?}");
 }
