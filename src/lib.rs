@@ -12,7 +12,6 @@ pub trait VGraph {
     // Measure of the distance between nodes
     type Dist;
 
-    fn all_nodes(&self) -> Vec<Self::Node>;
     fn out_edges(&self, node: Self::Node) -> Vec<Self::Node>;
 
     fn dist(&self, from: Self::Node, to: Self::Node) -> Self::Dist;
@@ -138,10 +137,6 @@ mod tests {
     impl VGraph for Ex {
         type Node = usize;
 
-        fn all_nodes(&self) -> Vec<Self::Node> {
-            vec![1, 2, 3]
-        }
-
         fn out_edges(&self, node: Self::Node) -> Vec<Self::Node> {
             match node {
                 1 => vec![2],
@@ -165,10 +160,6 @@ mod tests {
         type Node = usize;
 
         type Dist = usize;
-
-        fn all_nodes(&self) -> Vec<Self::Node> {
-            (1..=10).collect::<Vec<_>>()
-        }
 
         fn out_edges(&self, node: Self::Node) -> Vec<Self::Node> {
             match node {

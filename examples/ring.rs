@@ -26,10 +26,6 @@ impl VGraph for RingPuzzle {
 
     type Dist = usize;
 
-    fn all_nodes(&self) -> Vec<Self::Node> {
-        todo!()
-    }
-
     fn out_edges(&self, node: Self::Node) -> Vec<Self::Node> {
         // Negative sums end the game. No outgoing states.
         if node.sum < 0 {
