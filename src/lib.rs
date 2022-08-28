@@ -43,6 +43,103 @@ where
     None
 }
 
+pub struct AStarIter<G, F, H> 
+where 
+    G: VGraph,
+    G::Node: Hash + Eq + Copy,
+    G::Dist: Ord + Zero + Copy,
+    F: Fn(G::Node) -> bool,
+    H: Fn(G::Node) -> G::Dist,
+{
+    g: G,
+    to_explore: PriorityQueue<G::Node, Reverse<G::Dist>>,
+    prev: HashMap<G::Node, G::Node>,
+    dist_from_start: HashMap<G::Node, G::Dist>,
+    is_end: F,
+    heuristic: H,
+    prune: bool,
+}
+
+/// Iterator to iterate through solution paths to a search problem.
+/// For AStarIter, this will produce paths by increasing `path length + heuristic`.
+impl<G, F, H> AStarIter<G, F, H>
+where
+    G: VGraph,
+    G::Node: Hash + Eq + Copy,
+    G::Dist: Ord + Zero + Copy,
+    F: Fn(G::Node) -> bool,
+    H: Fn(G::Node) -> G::Dist,
+{
+    pub fn new(g:G, start: G::Node, is_end: F, heuristic: H) -> Self {
+        AStarIter::init(g, start, is_end, heuristic, false)
+    }
+
+    fn init(g:G, start: G::Node, is_end: F, heuristic: H, prune: bool) -> Self {
+        let mut to_explore = PriorityQueue::new();
+        to_explore.push_increase(start, Reverse(heuristic(start)));
+        // Stores the node that this came from on the path, and the best found true distance from the start.
+        let prev: HashMap<G::Node, G::Node> = HashMap::new();
+        let mut dist_from_start: HashMap<G::Node, G::Dist> = HashMap::new();
+        dist_from_start.insert(start, G::Dist::zero());
+
+        Self {
+            g,
+            to_explore,
+            prev,
+            dist_from_start,
+            heuristic,
+            is_end,
+            prune,
+        }
+
+    }
+}
+
+impl<G, F, H> Iterator for AStarIter<G, F, H>
+where
+    G: VGraph,
+    G::Node: Hash + Eq + Copy,
+    G::Dist: Ord + Zero + Copy,
+    F: Fn(G::Node) -> bool,
+    H: Fn(G::Node) -> G::Dist,
+{
+    type Item = Vec<G::Node>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some((cur, _priority)) = self.to_explore.pop() {
+            if (self.is_end)(cur) {
+                return Some(back_track(&self.prev, cur));
+            }
+
+            for next in self.g.out_edges(cur) {
+                let cur_distance = self.dist_from_start
+                    .get(&cur)
+                    .expect("Every node in the explore set should already have a previous distance.");
+                let start_to_next: G::Dist = *cur_distance + self.g.dist(cur, next);
+                let h_dist = start_to_next + (self.heuristic)(next);
+
+                if let Some(best_start_to_next) = self.dist_from_start.get(&next) {
+                    // we already have a path to next that is better than this one, skip this path.
+                    if self.prune && start_to_next >= *best_start_to_next { continue; }
+                }
+                self.to_explore.push_increase(next, Reverse(h_dist));
+
+                if self.dist_from_start
+                    .get(&next)
+                    .map(|current_best_start_to_next| start_to_next < *current_best_start_to_next)
+                    .unwrap_or(true)
+                {
+                    self.prev.insert(next, cur);
+                    self.dist_from_start.insert(next, start_to_next);
+                }
+            }
+        }
+
+        // Ran out of places to explore, end not found.
+        None
+    }
+}
+
 pub fn a_star_search<G, F, H>(g:G, start: G::Node, is_end: F, heuristic: H) -> Option<Vec<G::Node>>
 where
     G: VGraph,
@@ -51,43 +148,8 @@ where
     F: Fn(G::Node) -> bool,
     H: Fn(G::Node) -> G::Dist,
 {
-    let mut to_explore = PriorityQueue::new();
-    to_explore.push_increase(start, Reverse(heuristic(start)));
-    // Stores the node that this came from on the path, and the best found true distance from the start.
-    let mut prev: HashMap<G::Node, G::Node> = HashMap::new();
-    let mut dist_from_start: HashMap<G::Node, G::Dist> = HashMap::new();
-    dist_from_start.insert(start, G::Dist::zero());
-    while let Some((cur, _priority)) = to_explore.pop() {
-        if is_end(cur) {
-            return Some(back_track(&prev, cur));
-        }
-
-        for next in g.out_edges(cur) {
-            let cur_distance = dist_from_start
-                .get(&cur)
-                .expect("Every node in the explore set should already have a previous distance.");
-            let start_to_next: G::Dist = *cur_distance + g.dist(cur, next);
-            let h_dist = start_to_next + heuristic(next);
-
-            if let Some(best_start_to_next) = dist_from_start.get(&next) {
-                // we already have a path to next that is better than this one, skip this path.
-                if start_to_next >= *best_start_to_next { continue; }
-            }
-            to_explore.push_increase(next, Reverse(h_dist));
-
-            if dist_from_start
-                .get(&next)
-                .map(|current_best_start_to_next| start_to_next < *current_best_start_to_next)
-                .unwrap_or(true)
-            {
-                prev.insert(next, cur);
-                dist_from_start.insert(next, start_to_next);
-            }
-        }
-    }
-
-    // Ran out of places to explore, end not found.
-    None
+    // Just get the first path found.
+    AStarIter::init(g, start, is_end, heuristic, true).next()
 }
 
 pub fn path_length<G>(g: G, path: Vec<G::Node>) -> G::Dist
@@ -212,5 +274,10 @@ mod tests {
     #[test]
     fn a_star_search_for_non_path_terminates() {
         assert_eq!(None, a_star_search(Cycles {}, 1, |n| n == 33, |_| 0));
+    }
+
+    #[test]
+    fn a_star_search_multiple_paths() {
+        assert_eq!(vec![vec![1]], AStarIter::new(Cycles {}, 1, |n| n == 10, |_| 0).take(1).collect::<Vec<_>>())
     }
 }
