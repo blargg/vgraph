@@ -43,6 +43,57 @@ where
     None
 }
 
+// TODO: implement a builder and add options for pruning, depth
+pub struct BFSIterator<G, F>
+where
+    G: VGraph,
+    F: Fn(G::Node) -> bool,
+{
+    g: G,
+    to_explore: VecDeque<Vec<G::Node>>,
+    is_end: F,
+}
+
+pub fn bfs_all_paths<G, F>(g: G, start: G::Node, is_end: F) -> impl Iterator<Item=Vec<G::Node>>
+where
+    G: VGraph,
+    G::Node: Eq + Hash + Copy,
+    F: Fn(G::Node) -> bool,
+{
+    BFSIterator {
+        g,
+        to_explore: VecDeque::from(vec![vec![start]]),
+        is_end,
+    }
+}
+
+impl<G, F> Iterator for BFSIterator<G, F>
+where
+    G: VGraph,
+    G::Node: Eq + Hash + Copy,
+    F: Fn(G::Node) -> bool,
+{
+    type Item = Vec<G::Node>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        while let Some(cur_path) = self.to_explore.pop_front() {
+            let cur_node = *cur_path.last().expect("All explore paths must have at least 1 node.");
+            if (self.is_end)(cur_node) {
+                return Some(cur_path);
+            }
+
+            for next in self.g.out_edges(cur_node) {
+                // Only insert nodes we have not explored yet
+                let mut next_path = cur_path.clone();
+                next_path.push(next);
+                self.to_explore.push_back(next_path);
+            }
+        }
+
+        None
+    }
+}
+
 pub fn a_star_search<G, F, H>(g:G, start: G::Node, is_end: F, heuristic: H) -> Option<Vec<G::Node>>
 where
     G: VGraph,
@@ -212,5 +263,10 @@ mod tests {
     #[test]
     fn a_star_search_for_non_path_terminates() {
         assert_eq!(None, a_star_search(Cycles {}, 1, |n| n == 33, |_| 0));
+    }
+
+    #[test]
+    fn bfs_all_paths_test() {
+        assert_eq!(vec![vec![1, 3, 4, 10], vec![1, 2, 3, 4, 10], vec![1, 2, 6, 2, 3, 4, 10]], bfs_all_paths(Cycles {}, 1, |n| n == 10).take(3).collect::<Vec<_>>());
     }
 }
