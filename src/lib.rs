@@ -54,7 +54,7 @@ where
     is_end: F,
 }
 
-pub fn bfs_all_paths<G, F>(g: G, start: G::Node, is_end: F) -> impl Iterator<Item=Vec<G::Node>>
+pub fn bfs_all_paths<G, F>(g: G, start: G::Node, is_end: F) -> impl Iterator<Item = Vec<G::Node>>
 where
     G: VGraph,
     G::Node: Eq + Hash + Copy,
@@ -77,7 +77,9 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         while let Some(cur_path) = self.to_explore.pop_front() {
-            let cur_node = *cur_path.last().expect("All explore paths must have at least 1 node.");
+            let cur_node = *cur_path
+                .last()
+                .expect("All explore paths must have at least 1 node.");
             if (self.is_end)(cur_node) {
                 return Some(cur_path);
             }
@@ -94,7 +96,7 @@ where
     }
 }
 
-pub fn a_star_search<G, F, H>(g:G, start: G::Node, is_end: F, heuristic: H) -> Option<Vec<G::Node>>
+pub fn a_star_search<G, F, H>(g: G, start: G::Node, is_end: F, heuristic: H) -> Option<Vec<G::Node>>
 where
     G: VGraph,
     G::Node: Hash + Eq + Ord + Copy,
@@ -122,7 +124,9 @@ where
 
             if let Some(best_start_to_next) = dist_from_start.get(&next) {
                 // we already have a path to next that is better than this one, skip this path.
-                if start_to_next >= *best_start_to_next { continue; }
+                if start_to_next >= *best_start_to_next {
+                    continue;
+                }
             }
             to_explore.push_increase(next, Reverse(h_dist));
 
@@ -214,8 +218,8 @@ mod tests {
 
         fn out_edges(&self, node: Self::Node) -> Vec<Self::Node> {
             match node {
-                1 => vec![2,3],
-                2 => vec![3,6],
+                1 => vec![2, 3],
+                2 => vec![3, 6],
                 3 => vec![4, 5],
                 4 => vec![10, 5],
                 5 => vec![1],
@@ -257,7 +261,10 @@ mod tests {
         fn h(_node: usize) -> i32 {
             return 0;
         }
-        assert_eq!(Some(vec![1, 2, 3]), a_star_search(Ex::new(), 1, |n| n == 3, h));
+        assert_eq!(
+            Some(vec![1, 2, 3]),
+            a_star_search(Ex::new(), 1, |n| n == 3, h)
+        );
     }
 
     #[test]
@@ -267,6 +274,15 @@ mod tests {
 
     #[test]
     fn bfs_all_paths_test() {
-        assert_eq!(vec![vec![1, 3, 4, 10], vec![1, 2, 3, 4, 10], vec![1, 2, 6, 2, 3, 4, 10]], bfs_all_paths(Cycles {}, 1, |n| n == 10).take(3).collect::<Vec<_>>());
+        assert_eq!(
+            vec![
+                vec![1, 3, 4, 10],
+                vec![1, 2, 3, 4, 10],
+                vec![1, 2, 6, 2, 3, 4, 10]
+            ],
+            bfs_all_paths(Cycles {}, 1, |n| n == 10)
+                .take(3)
+                .collect::<Vec<_>>()
+        );
     }
 }
