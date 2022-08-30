@@ -1,3 +1,5 @@
+mod dfs;
+
 use num::traits::Zero;
 use priority_queue::PriorityQueue;
 use std::cmp::Reverse;
